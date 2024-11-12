@@ -13,14 +13,20 @@ CAMERA_RIGHT="rtsp://admin:kaio3005@192.168.100.163/onvif2" # Exemplo de câmera
 # Caminho completo para o FFmpeg (substitua pelo caminho obtido com o comando 'which ffmpeg')
 FFMPEG_PATH="/usr/bin/ffmpeg"
 
+# Diretorio de logs
+LOG_DIR="/home/kaio/pi/"
+
+# Cria o diretório de logs caso não exista
+mkdir -p $LOG_DIR
+
 # Função de gravação contínua para uma câmera
 start_continuous_recording() {
     while true; do
         # Gravação contínua por 25 segundos para a câmera esquerda (sobrescreve o TEMP_VIDEO_LEFT)
-        $FFMPEG_PATH -rtsp_transport tcp -i $CAMERA_LEFT -t 25 -c copy -an -y $TEMP_VIDEO_LEFT 2>&1 | tee /home/pi/ffmpeg_log_left.txt
+        $FFMPEG_PATH -rtsp_transport tcp -i $CAMERA_LEFT -t 25 -c copy -an -y $TEMP_VIDEO_LEFT 2>&1 | tee $LOG_DIR/ffmpeg_log_left.txt
 
         # Gravação contínua por 25 segundos para a câmera direita (sobrescreve o TEMP_VIDEO_RIGHT)
-        $FFMPEG_PATH -rtsp_transport tcp -i $CAMERA_RIGHT -t 25 -c copy -an -y $TEMP_VIDEO_RIGHT 2>&1 | tee /home/pi/ffmpeg_log_right.txt
+        $FFMPEG_PATH -rtsp_transport tcp -i $CAMERA_RIGHT -t 25 -c copy -an -y $TEMP_VIDEO_RIGHT 2>&1 | tee $LOG_DIR/ffmpeg_log_right.txt
 
         # Atualiza o buffer com os últimos 25 segundos de gravação para cada câmera
         cp $TEMP_VIDEO_LEFT $BUFFER_VIDEO_LEFT
