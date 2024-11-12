@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # Caminhos dos arquivos de buffer, temporários e de saída
-BUFFER_VIDEO_LEFT="/home/pi/video_buffer_left.mp4"    # Buffer de 25 segundos da câmera esquerda
-BUFFER_VIDEO_RIGHT="/home/pi/video_buffer_right.mp4"  # Buffer de 25 segundos da câmera direita
-TEMP_VIDEO="/home/pi/video_temp.mp4"                   # Arquivo temporário de gravação contínua
+TEMP_VIDEO_LEFT="/home/kaio/pi/video_temp_left.mp4"    # temp de 25 segundos da câmera esquerda
+TEMP_VIDEO_RIGHT="/home/kaio/pi/video_temp_right.mp4"  # temp de 25 segundos da câmera direita
+
 
 # URL das câmeras (substitua pelos endereços IP ou URLs RTSP das suas câmeras)
 CAMERA_LEFT="rtsp://admin:kaio3005@192.168.100.243/onvif1"  # Exemplo de câmera esquerda
@@ -25,14 +25,10 @@ start_continuous_recording() {
         echo "Iniciando gravação contínua das câmeras... (5 minutos cada)"
         
         # Gravação contínua para a câmera esquerda (H.265 -> H.264, ou diretamente H.265 dependendo da compatibilidade)
-        $FFMPEG_PATH -rtsp_transport udp -i $CAMERA_LEFT -t 300 -c:v libx264 -c:a aac -strict experimental -y $TEMP_VIDEO 2>&1 | tee $LOG_DIR/ffmpeg_log_left.txt
+        $FFMPEG_PATH -rtsp_transport udp -i $CAMERA_LEFT -t 300 -c:v libx264 -c:a aac -strict experimental -y $TEMP_VIDEO_LEFT 2>&1 | tee $LOG_DIR/ffmpeg_log_left.txt
         
         # Gravação contínua para a câmera direita (H.265 -> H.264, ou diretamente H.265 dependendo da compatibilidade)
-        $FFMPEG_PATH -rtsp_transport udp -i $CAMERA_RIGHT -t 300 -c:v libx264 -c:a aac -strict experimental -y $TEMP_VIDEO 2>&1 | tee $LOG_DIR/ffmpeg_log_right.txt
-
-        # Atualiza o buffer com os últimos 25 segundos de gravação para cada câmera
-        cp $TEMP_VIDEO $BUFFER_VIDEO_LEFT
-        cp $TEMP_VIDEO $BUFFER_VIDEO_RIGHT
+        $FFMPEG_PATH -rtsp_transport udp -i $CAMERA_RIGHT -t 300 -c:v libx264 -c:a aac -strict experimental -y $TEMP_VIDEO_RIGHT 2>&1 | tee $LOG_DIR/ffmpeg_log_right.txt
 
         # Aguarda 1 segundo para garantir que o loop de gravação esteja sincronizado
         sleep 1
