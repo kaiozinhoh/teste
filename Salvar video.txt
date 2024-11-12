@@ -1,0 +1,80 @@
+#!/bin/bash
+
+# Caminhos dos arquivos de buffer, temporários e de saída
+BUFFER_VIDEO_LEFT="/home/pi/video_buffer_left.mp4"    # Buffer de 25 segundos da câmera esquerda
+BUFFER_VIDEO_RIGHT="/home/pi/video_buffer_right.mp4"  # Buffer de 25 segundos da câmera direita
+TEMP_VIDEO_LEFT="/home/pi/video_temp_left.mp4"        # Arquivo temporário de gravação contínua da câmera esquerda
+TEMP_VIDEO_RIGHT="/home/pi/video_temp_right.mp4"      # Arquivo temporário de gravação contínua da câmera direita
+OUTPUT_VIDEO_LEFT="/home/pi/ultimo_video_left.mp4"    # Arquivo final para a câmera esquerda
+OUTPUT_VIDEO_RIGHT="/home/pi/ultimo_video_right.mp4"  # Arquivo final para a câmera direita
+
+# Função para salvar e garantir os últimos 25 segundos exatos
+save_video() {
+    echo "Botão pressionado! Salvando vídeos..."
+
+    # Função para salvar os últimos 25 segundos para cada câmera
+    save_for_camera() {
+        CAMERA=$1
+        BUFFER_VIDEO=$2
+        TEMP_VIDEO=$3
+        OUTPUT_VIDEO=$4
+
+        # Verifica se o arquivo de buffer existe
+        if [ -f "$BUFFER_VIDEO" ] && [ -s "$BUFFER_VIDEO" ]; then
+            # Se o arquivo temporário existir e não estiver vazio, vamos garantir a junção dos vídeos
+            if [ -f "$TEMP_VIDEO" ] && [ -s "$TEMP_VIDEO" ]; then
+                # Pega a duração total do arquivo temporário
+                TEMP_DURATION=$(ffmpeg -i $TEMP_VIDEO 2>&1 | grep "Duration" | awk '{print $2}' | tr -d ,)
+                TEMP_SECONDS=$(echo $TEMP_DURATION | awk -F: '{print ($1 * 3600) + ($2 * 60) + $3}')
+                echo "Duração do vídeo temporário: $TEMP_SECONDS segundos"
+
+                # Calcular a quantidade de tempo para pegar do vídeo temporário
+                START_TIME=$(($TEMP_SECONDS - 25))
+
+                # Se o arquivo temporário for menor que 25 segundos, não vai funcionar, então pegamos tudo
+                if [ $START_TIME -lt 0 ]; then
+                    START_TIME=0
+                fi
+
+                # Calcular a quantidade de segundos a serem retirados do buffer para evitar duplicação
+                BUFFER_DURATION=$(ffmpeg -i $BUFFER_VIDEO 2>&1 | grep "Duration" | awk '{print $2}' | tr -d ,)
+                BUFFER_SECONDS=$(echo $BUFFER_DURATION | awk -F: '{print ($1 * 3600) + ($2 * 60) + $3}')
+
+                # Se a duração do buffer for maior que os 25 segundos que queremos salvar
+                if [ $BUFFER_SECONDS -gt 25 ]; then
+                    BUFFER_START_TIME=$(($BUFFER_SECONDS - 25))
+                else
+                    BUFFER_START_TIME=0
+                fi
+
+                # Parar a gravação contínua antes de salvar (sobrescrever TEMP_VIDEO)
+                killall ffmpeg
+
+                # Sobrescrever o arquivo temporário com 25 segundos da gravação mais recente
+                echo "Sobrescrevendo o arquivo temporário para $CAMERA..."
+                ffmpeg -i rtsp://admin:senha@192.168.100.243/onvif1 -t 25 -c copy -y $TEMP_VIDEO
+
+                # Juntar os arquivos temporário e buffer, subtraindo a parte do buffer
+                echo "Juntando o arquivo temporário e buffer para $CAMERA..."
+                ffmpeg -ss $BUFFER_START_TIME -i $BUFFER_VIDEO -ss $START_TIME -i $TEMP_VIDEO -c copy -y $OUTPUT_VIDEO
+                echo "Vídeo final da câmera $CAMERA salvo com sucesso em $OUTPUT_VIDEO"
+            else
+                # Se não houver arquivo temporário válido, apenas salva o buffer
+                echo "Salvando apenas o buffer da câmera $CAMERA..."
+                ffmpeg -t 25 -i $BUFFER_VIDEO -y $OUTPUT_VIDEO
+                echo "Vídeo final da câmera $CAMERA salvo com sucesso em $OUTPUT_VIDEO"
+            fi
+        else
+            echo "Erro: arquivo de buffer da câmera $CAMERA não encontrado ou vazio."
+        fi
+    }
+
+    # Salva para a câmera esquerda
+    save_for_camera "esquerda" $BUFFER_VIDEO_LEFT $TEMP_VIDEO_LEFT $OUTPUT_VIDEO_LEFT
+
+    # Salva para a câmera direita
+    save_for_camera "direita" $BUFFER_VIDEO_RIGHT $TEMP_VIDEO_RIGHT $OUTPUT_VIDEO_RIGHT
+}
+
+# Chama a função para salvar os vídeos
+save_video
