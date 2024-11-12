@@ -1,35 +1,57 @@
 #!/bin/bash
 
 # Caminhos dos arquivos de buffer, temporários e de saída
-TEMP_VIDEO="/home/pi/video_temp.mp4"               # Arquivo temporário de gravação contínua
-VIDEO_FINAL="/home/pi/video_final.mp4"             # Clip final com os últimos 20 segundos
-LOG_DIR="/home/pi/"                                # Diretório de logs
+TEMP_VIDEO_LEFT="/home/kaio/pi/video_temp_left.mp4"    # Arquivo temporário da câmera esquerda
+TEMP_VIDEO_RIGHT="/home/kaio/pi/video_temp_right.mp4"  # Arquivo temporário da câmera direita
+VIDEO_FINAL_LEFT="/home/kaio/pi/video_final_left.mp4"  # Clip final da câmera esquerda (últimos 20 segundos)
+VIDEO_FINAL_RIGHT="/home/kaio/pi/video_final_right.mp4" # Clip final da câmera direita (últimos 20 segundos)
 
 # Caminho completo para o FFmpeg
 FFMPEG_PATH="/usr/bin/ffmpeg"
 
-# Função para salvar os últimos 20 segundos do arquivo temporário
+# Diretorio de logs
+LOG_DIR="/home/kaio/pi/"
+
+# Função para salvar os últimos 20 segundos do arquivo temporário de cada câmera
 save_last_20_seconds() {
-    # Verifica se o arquivo temporário existe e não está vazio
-    if [ -f "$TEMP_VIDEO" ] && [ -s "$TEMP_VIDEO" ]; then
-        # Obtém a duração total do arquivo temporário
-        DURATION=$(ffmpeg -i $TEMP_VIDEO 2>&1 | grep "Duration" | awk '{print $2}' | tr -d ,)
-        DURATION_SECONDS=$(echo $DURATION | awk -F: '{print ($1 * 3600) + ($2 * 60) + $3}')
+    # Para a câmera esquerda
+    if [ -f "$TEMP_VIDEO_LEFT" ] && [ -s "$TEMP_VIDEO_LEFT" ]; then
+        # Obtém a duração total do arquivo temporário da câmera esquerda
+        DURATION_LEFT=$(ffmpeg -i $TEMP_VIDEO_LEFT 2>&1 | grep "Duration" | awk '{print $2}' | tr -d ,)
+        DURATION_LEFT_SECONDS=$(echo $DURATION_LEFT | awk -F: '{print ($1 * 3600) + ($2 * 60) + $3}')
 
         # Calcula o ponto de corte para os últimos 20 segundos
-        START_TIME=$(($DURATION_SECONDS - 20))
-
-        # Se a duração for menor que 20 segundos, ajusta o ponto de corte para 0
-        if [ $START_TIME -lt 0 ]; then
-            START_TIME=0
+        START_TIME_LEFT=$(($DURATION_LEFT_SECONDS - 20))
+        if [ $START_TIME_LEFT -lt 0 ]; then
+            START_TIME_LEFT=0
         fi
 
-        # Corta os últimos 20 segundos do vídeo
-        echo "Salvando os últimos 20 segundos..."
-        $FFMPEG_PATH -ss $START_TIME -i $TEMP_VIDEO -t 20 -c copy -y $VIDEO_FINAL
-        echo "Clip final salvo com sucesso em $VIDEO_FINAL"
+        # Corta os últimos 20 segundos da câmera esquerda e salva em outro arquivo
+        echo "Salvando os últimos 20 segundos da câmera esquerda..."
+        $FFMPEG_PATH -ss $START_TIME_LEFT -i $TEMP_VIDEO_LEFT -t 20 -c copy -y $VIDEO_FINAL_LEFT
+        echo "Clip final da câmera esquerda salvo em $VIDEO_FINAL_LEFT"
     else
-        echo "Erro: Arquivo temporário não encontrado ou está vazio."
+        echo "Erro: Arquivo temporário da câmera esquerda não encontrado ou está vazio."
+    fi
+
+    # Para a câmera direita
+    if [ -f "$TEMP_VIDEO_RIGHT" ] && [ -s "$TEMP_VIDEO_RIGHT" ]; then
+        # Obtém a duração total do arquivo temporário da câmera direita
+        DURATION_RIGHT=$(ffmpeg -i $TEMP_VIDEO_RIGHT 2>&1 | grep "Duration" | awk '{print $2}' | tr -d ,)
+        DURATION_RIGHT_SECONDS=$(echo $DURATION_RIGHT | awk -F: '{print ($1 * 3600) + ($2 * 60) + $3}')
+
+        # Calcula o ponto de corte para os últimos 20 segundos
+        START_TIME_RIGHT=$(($DURATION_RIGHT_SECONDS - 20))
+        if [ $START_TIME_RIGHT -lt 0 ]; then
+            START_TIME_RIGHT=0
+        fi
+
+        # Corta os últimos 20 segundos da câmera direita e salva em outro arquivo
+        echo "Salvando os últimos 20 segundos da câmera direita..."
+        $FFMPEG_PATH -ss $START_TIME_RIGHT -i $TEMP_VIDEO_RIGHT -t 20 -c copy -y $VIDEO_FINAL_RIGHT
+        echo "Clip final da câmera direita salvo em $VIDEO_FINAL_RIGHT"
+    else
+        echo "Erro: Arquivo temporário da câmera direita não encontrado ou está vazio."
     fi
 }
 
@@ -44,14 +66,14 @@ pause_continuous_recording() {
 # Função para reiniciar a gravação contínua
 restart_continuous_recording() {
     echo "Reiniciando gravação contínua..."
-    # Você pode usar o mesmo script que foi utilizado para iniciar a gravação contínua
+    # Inicia a gravação contínua novamente para as duas câmeras
     ./start_continuous_recording.sh &
 }
 
 # Pausar a gravação contínua
 pause_continuous_recording
 
-# Salvar os últimos 20 segundos do vídeo
+# Salvar os últimos 20 segundos de ambos os vídeos
 save_last_20_seconds
 
 # Reiniciar a gravação contínua
